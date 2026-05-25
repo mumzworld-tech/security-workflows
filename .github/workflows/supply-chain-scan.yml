@@ -23,11 +23,55 @@ jobs:
           curl -sSL https://raw.githubusercontent.com/mumzworld-tech/security-workflows/main/catalogs/exposure-catalog.json -o catalog.json
 
       - name: Run scan
+        id: scan
         run: |
-          bumblebee scan --profile ${{ inputs.scan_profile }} --root . --exposure-catalog catalog.json --findings-only > findings.ndjson
+          bumblebee scan --profile ${{ inputs.scan_profile }} --root . --exposure-catalog catalog.json --findings-only > findings.ndjson 2>/dev/null || true
           if [ -s findings.ndjson ]; then
+            echo "status=FAIL" >> $GITHUB_OUTPUT
+            echo "findings=$(cat findings.ndjson | wc -l)" >> $GITHUB_OUTPUT
             echo "::error::⚠️ Exposed packages found!"
             cat findings.ndjson
-            exit 1
+          else
+            echo "status=PASS" >> $GITHUB_OUTPUT
+            echo "findings=0" >> $GITHUB_OUTPUT
+            echo "✅ No exposed packages found"
           fi
-          echo "✅ No exposed packages found"
+
+      - name: Publish scan result
+        if: always()
+        run: |
+          REPO="${{ github.repository }}"
+          STATUS="${{ steps.scan.outputs.status }}"
+          FINDINGS="${{ steps.scan.outputs.findings }}"
+          SHA="${{ github.sha }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+          # Create/update a JSON artifact with scan result
+          echo "{\"repo\":\"$REPO\",\"status\":\"$STATUS\",\"findings\":$FINDINGS,\"sha\":\"${SHA::8}\",\"run_url\":\"$RUN_URL\",\"timestamp\":\"$TIMESTAMP\"}" > scan-result.json
+          cat scan-result.json
+
+      - name: Upload scan result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: supply-chain-scan-result
+          path: scan-result.json
+          retention-days: 90
+
+      - name: Report to Prism Sentinel
+        if: always()
+        env:
+          SENTINEL_URL: ${{ vars.SENTINEL_URL }}
+          SENTINEL_SECRET: ${{ secrets.SENTINEL_SECRET }}
+        run: |
+          if [ -n "$SENTINEL_URL" ]; then
+            curl -s -X POST "$SENTINEL_URL/scan-result" \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer $SENTINEL_SECRET" \
+              -d @scan-result.json || echo "Warning: Failed to report to Prism Sentinel"
+          fi
+
+      - name: Fail if exposed
+        if: steps.scan.outputs.status == 'FAIL'
+        run: exit 1
