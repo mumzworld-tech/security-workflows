@@ -1,0 +1,29 @@
+{
+  "schema_version": "0.1.0",
+  "entries": [
+    {
+      "id": "example-001",
+      "name": "event-stream 3.3.6 (compromised flatmap-stream injection)",
+      "ecosystem": "npm",
+      "package": "event-stream",
+      "versions": ["3.3.6"],
+      "severity": "critical"
+    },
+    {
+      "id": "example-002",
+      "name": "colors 1.4.1 (protestware infinite loop)",
+      "ecosystem": "npm",
+      "package": "colors",
+      "versions": ["1.4.1"],
+      "severity": "high"
+    },
+    {
+      "id": "example-003",
+      "name": "faker 6.6.6 (protestware infinite loop)",
+      "ecosystem": "npm",
+      "package": "faker",
+      "versions": ["6.6.6"],
+      "severity": "high"
+    }
+  ]
+}

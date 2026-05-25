@@ -1,0 +1,33 @@
+name: Supply Chain Scan
+
+on:
+  workflow_call:
+    inputs:
+      scan_profile:
+        type: string
+        default: 'project'
+
+jobs:
+  bumblebee:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Bumblebee
+        run: |
+          curl -sSL https://github.com/perplexityai/bumblebee/releases/latest/download/bumblebee_linux_amd64 -o /usr/local/bin/bumblebee
+          chmod +x /usr/local/bin/bumblebee
+
+      - name: Fetch exposure catalog
+        run: |
+          curl -sSL https://raw.githubusercontent.com/mumzworld-tech/security-workflows/main/catalogs/exposure-catalog.json -o catalog.json
+
+      - name: Run scan
+        run: |
+          bumblebee scan --profile ${{ inputs.scan_profile }} --root . --exposure-catalog catalog.json --findings-only > findings.ndjson
+          if [ -s findings.ndjson ]; then
+            echo "::error::⚠️ Exposed packages found!"
+            cat findings.ndjson
+            exit 1
+          fi
+          echo "✅ No exposed packages found"
