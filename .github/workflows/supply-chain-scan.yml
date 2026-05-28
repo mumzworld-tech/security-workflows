@@ -32,8 +32,19 @@ jobs:
           bumblebee scan --profile ${{ inputs.scan_profile }} --root . --exposure-catalog catalog.json --findings-only > findings.ndjson 2>/dev/null || true
           if [ -s findings.ndjson ]; then
             echo "status=FAIL" >> $GITHUB_OUTPUT
-            echo "findings=$(cat findings.ndjson | wc -l)" >> $GITHUB_OUTPUT
-            echo "::error::⚠️ Exposed packages found!"
+            FINDING_COUNT=$(cat findings.ndjson | wc -l)
+            echo "findings=$FINDING_COUNT" >> $GITHUB_OUTPUT
+            # Extract package names for annotations
+            PACKAGES=$(cat findings.ndjson | python3 -c "
+import sys,json
+for line in sys.stdin:
+  try:
+    d=json.loads(line)
+    print(f\"{d.get('package_name','unknown')}@{d.get('version','?')} ({d.get('ecosystem','?')}) — {d.get('source_file','')}\")
+  except: pass
+" 2>/dev/null || cat findings.ndjson)
+            echo "::error::⚠️ Exposed packages found: $PACKAGES"
+            echo "$PACKAGES" > packages-found.txt
             cat findings.ndjson
           else
             echo "status=PASS" >> $GITHUB_OUTPUT
