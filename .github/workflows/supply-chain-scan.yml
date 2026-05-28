@@ -32,23 +32,16 @@ jobs:
           bumblebee scan --profile ${{ inputs.scan_profile }} --root . --exposure-catalog catalog.json --findings-only > findings.ndjson 2>/dev/null || true
           if [ -s findings.ndjson ]; then
             echo "status=FAIL" >> $GITHUB_OUTPUT
-            FINDING_COUNT=$(cat findings.ndjson | wc -l)
+            FINDING_COUNT=$(wc -l < findings.ndjson)
             echo "findings=$FINDING_COUNT" >> $GITHUB_OUTPUT
-            # Extract package names for annotations
-            PACKAGES=$(cat findings.ndjson | python3 -c "
-import sys,json
-for line in sys.stdin:
-  try:
-    d=json.loads(line)
-    print(f\"{d.get('package_name','unknown')}@{d.get('version','?')} ({d.get('ecosystem','?')}) — {d.get('source_file','')}\")
-  except: pass
-" 2>/dev/null || cat findings.ndjson)
-            echo "::error::⚠️ Exposed packages found: $PACKAGES"
-            echo "$PACKAGES" > packages-found.txt
+            PACKAGES=$(grep -o '"package_name":"[^"]*"' findings.ndjson | cut -d'"' -f4 | sort -u | tr '\n' ', ' | sed 's/,$//')
+            echo "packages=$PACKAGES" >> $GITHUB_OUTPUT
+            echo "::error::Exposed packages found: $PACKAGES"
             cat findings.ndjson
           else
             echo "status=PASS" >> $GITHUB_OUTPUT
             echo "findings=0" >> $GITHUB_OUTPUT
+            echo "packages=" >> $GITHUB_OUTPUT
             echo "✅ No exposed packages found"
           fi
 
@@ -58,12 +51,11 @@ for line in sys.stdin:
           REPO="${{ github.repository }}"
           STATUS="${{ steps.scan.outputs.status }}"
           FINDINGS="${{ steps.scan.outputs.findings }}"
+          PACKAGES="${{ steps.scan.outputs.packages }}"
           SHA="${{ github.sha }}"
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-
-          # Create/update a JSON artifact with scan result
-          echo "{\"repo\":\"$REPO\",\"status\":\"$STATUS\",\"findings\":$FINDINGS,\"sha\":\"${SHA::8}\",\"run_url\":\"$RUN_URL\",\"timestamp\":\"$TIMESTAMP\"}" > scan-result.json
+          echo "{\"repo\":\"$REPO\",\"status\":\"$STATUS\",\"findings\":$FINDINGS,\"packages\":\"$PACKAGES\",\"sha\":\"${SHA::8}\",\"run_url\":\"$RUN_URL\",\"timestamp\":\"$TIMESTAMP\"}" > scan-result.json
           cat scan-result.json
 
       - name: Upload scan result
@@ -73,19 +65,6 @@ for line in sys.stdin:
           name: supply-chain-scan-result
           path: scan-result.json
           retention-days: 90
-
-      - name: Report to Prism Sentinel
-        if: always()
-        env:
-          SENTINEL_URL: ${{ vars.SENTINEL_URL }}
-          SENTINEL_SECRET: ${{ secrets.SENTINEL_SECRET }}
-        run: |
-          if [ -n "$SENTINEL_URL" ]; then
-            curl -s -X POST "$SENTINEL_URL/scan-result" \
-              -H "Content-Type: application/json" \
-              -H "Authorization: Bearer $SENTINEL_SECRET" \
-              -d @scan-result.json || echo "Warning: Failed to report to Prism Sentinel"
-          fi
 
       - name: Fail if exposed
         if: steps.scan.outputs.status == 'FAIL'
