@@ -24,6 +24,46 @@
       "package": "faker",
       "versions": ["6.6.6"],
       "severity": "high"
+    },
+    {
+      "id": "trapdoor-001",
+      "name": "crypto-credential-scanner (TrapDoor credential stealer)",
+      "ecosystem": "npm",
+      "package": "crypto-credential-scanner",
+      "versions": ["*"],
+      "severity": "critical"
+    },
+    {
+      "id": "trapdoor-002",
+      "name": "node-setup-helpers (TrapDoor credential stealer)",
+      "ecosystem": "npm",
+      "package": "node-setup-helpers",
+      "versions": ["*"],
+      "severity": "critical"
+    },
+    {
+      "id": "trapdoor-003",
+      "name": "workspace-config-loader (TrapDoor credential stealer)",
+      "ecosystem": "npm",
+      "package": "workspace-config-loader",
+      "versions": ["*"],
+      "severity": "critical"
+    },
+    {
+      "id": "trapdoor-004",
+      "name": "project-init-tools (TrapDoor credential stealer)",
+      "ecosystem": "npm",
+      "package": "project-init-tools",
+      "versions": ["*"],
+      "severity": "critical"
+    },
+    {
+      "id": "trapdoor-005",
+      "name": "dev-env-bootstrapper (TrapDoor credential stealer)",
+      "ecosystem": "npm",
+      "package": "dev-env-bootstrapper",
+      "versions": ["*"],
+      "severity": "critical"
     }
   ]
 }
