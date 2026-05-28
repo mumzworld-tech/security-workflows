@@ -29,14 +29,28 @@ jobs:
       - name: Run scan
         id: scan
         run: |
+          # Scan lockfiles with Bumblebee
           bumblebee scan --profile ${{ inputs.scan_profile }} --root . --exposure-catalog catalog.json --findings-only > findings.ndjson 2>/dev/null || true
+          
+          # Also scan package.json files for catalog entries (catches declared but not-yet-installed packages)
+          CATALOG_PACKAGES=$(cat catalog.json | grep -o '"package": "[^"]*"' | cut -d'"' -f4)
+          for pkg in $CATALOG_PACKAGES; do
+            FOUND=$(grep -rl "\"$pkg\"" . --include="package.json" --include="composer.json" --include="go.mod" 2>/dev/null | grep -v node_modules | grep -v vendor)
+            if [ -n "$FOUND" ]; then
+              for f in $FOUND; do
+                echo "{\"record_type\":\"finding\",\"package_name\":\"$pkg\",\"source_file\":\"$f\",\"ecosystem\":\"npm\",\"confidence\":\"high\"}" >> findings.ndjson
+              done
+            fi
+          done
+
           if [ -s findings.ndjson ]; then
             echo "status=FAIL" >> $GITHUB_OUTPUT
             FINDING_COUNT=$(wc -l < findings.ndjson)
             echo "findings=$FINDING_COUNT" >> $GITHUB_OUTPUT
             PACKAGES=$(grep -o '"package_name":"[^"]*"' findings.ndjson | cut -d'"' -f4 | sort -u | tr '\n' ', ' | sed 's/,$//')
+            FILES=$(grep -o '"source_file":"[^"]*"' findings.ndjson | cut -d'"' -f4 | sort -u | tr '\n' ', ' | sed 's/,$//')
             echo "packages=$PACKAGES" >> $GITHUB_OUTPUT
-            echo "::error::Exposed packages found: $PACKAGES"
+            echo "::error::Exposed packages found: $PACKAGES in $FILES"
             cat findings.ndjson
           else
             echo "status=PASS" >> $GITHUB_OUTPUT
