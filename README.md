@@ -2,7 +2,7 @@
 
 Shared supply chain security workflows for all Mumzworld repos.
 
-## Usage
+### Usage
 
 Add this to any repo's `.github/workflows/ci.yml`:
 
