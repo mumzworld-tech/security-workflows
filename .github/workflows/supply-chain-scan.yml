@@ -24,7 +24,7 @@ jobs:
 
       - name: Fetch exposure catalog
         run: |
-          curl -sSL https://raw.githubusercontent.com/mumzworld-tech/security-workflows/main/catalogs/exposure-catalog.json -o catalog.json
+          curl -sSL -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "https://raw.githubusercontent.com/mumzworld-tech/security-workflows/main/catalogs/exposure-catalog.json" -o catalog.json
 
       - name: Run scan
         id: scan
@@ -94,7 +94,7 @@ jobs:
       - name: Check package age policy (7-day minimum)
         id: age_check
         run: |
-          curl -sSL https://raw.githubusercontent.com/mumzworld-tech/security-workflows/main/scripts/check-package-age.js -o /tmp/check-package-age.js
+          cp .security-workflows/scripts/check-package-age.js /tmp/check-package-age.js 2>/dev/null || curl -sSL -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "https://raw.githubusercontent.com/mumzworld-tech/security-workflows/main/scripts/check-package-age.js" -o /tmp/check-package-age.js
           if node /tmp/check-package-age.js .; then
             echo "status=PASS" >> $GITHUB_OUTPUT
           else
